@@ -1,0 +1,458 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>오늘의공고 KPI</title>
+<style>
+  :root {
+    color-scheme: light;
+    --page: #f9f9f7;
+    --surface: #fcfcfb;
+    --ink: #0b0b0b;
+    --ink2: #52514e;
+    --muted: #898781;
+    --grid: #e1e0d9;
+    --axis: #c3c2b7;
+    --ring: rgba(11,11,11,.10);
+    --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100; --s5: #e87ba4; --s6: #008300;
+    --cell-ink-on-dark: #fff;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:where(:not([data-theme="light"])) {
+      color-scheme: dark;
+      --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+      --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,.10);
+      --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+    }
+  }
+  :root[data-theme="dark"] {
+    color-scheme: dark;
+    --page: #0d0d0d; --surface: #1a1a19; --ink: #f0efec; --ink2: #c3c2b7; --muted: #898781;
+    --grid: #2c2c2a; --axis: #383835; --ring: rgba(255,255,255,.10);
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500; --s5: #d55181; --s6: #008300;
+  }
+
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--page); color: var(--ink); }
+  body {
+    font: 14px/1.5 system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", "Noto Sans KR", sans-serif;
+    padding: 24px 16px 56px;
+  }
+  .wrap { max-width: 1040px; margin: 0 auto; }
+  h1 { font-size: 20px; margin: 0 0 4px; font-weight: 650; }
+  h2 { font-size: 15px; margin: 0; font-weight: 650; }
+  .meta { color: var(--ink2); font-size: 12.5px; }
+  .sample-banner { background: #fab219; color: #0b0b0b; padding: 6px 12px; border-radius: 8px; font-size: 12.5px; margin: 12px 0 0; font-weight: 600; }
+
+  .kpis { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 12px; margin: 20px 0 16px; }
+  @media (max-width: 720px) { .kpis { grid-template-columns: 1fr; } }
+  .card { background: var(--surface); border-radius: 12px; box-shadow: 0 0 0 1px var(--ring); padding: 16px 18px; }
+  .tile .label { color: var(--ink2); font-size: 12.5px; }
+  .tile .value { font-weight: 650; letter-spacing: -0.02em; line-height: 1.1; margin: 6px 0 4px; }
+  .tile.hero .value { font-size: 56px; }
+  .tile .value { font-size: 38px; }
+  .tile .value small { font-size: .42em; font-weight: 500; color: var(--ink2); margin-left: 4px; letter-spacing: 0; }
+  .tile .sub { color: var(--ink2); font-size: 12.5px; }
+  .tile .sub b { color: var(--ink); font-weight: 600; }
+
+  section.card { margin-top: 12px; }
+  .sec-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 10px; }
+  .sec-head p { margin: 2px 0 0; color: var(--ink2); font-size: 12.5px; max-width: 640px; }
+  .seg { display: inline-flex; border-radius: 8px; box-shadow: 0 0 0 1px var(--ring); overflow: hidden; }
+  .seg button { font: inherit; font-size: 12.5px; padding: 5px 12px; border: 0; background: transparent; color: var(--ink2); cursor: pointer; }
+  .seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); font-weight: 600; }
+  .seg button:not([aria-pressed="true"]):hover { background: var(--grid); }
+
+  .two { display: grid; grid-template-columns: 1.5fr 1fr; gap: 12px; margin-top: 12px; }
+  @media (max-width: 820px) { .two { grid-template-columns: 1fr; } }
+  .two .card { margin: 0; }
+
+  .chart { position: relative; width: 100%; }
+  .chart svg { display: block; overflow: visible; }
+  .legend { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 0 0 8px; font-size: 12px; color: var(--ink2); }
+  .legend .it { display: inline-flex; align-items: center; gap: 6px; }
+  .legend .key { width: 16px; height: 2px; border-radius: 1px; display: inline-block; }
+  .tip { position: absolute; pointer-events: none; background: var(--surface); box-shadow: 0 0 0 1px var(--ring), 0 6px 18px rgba(0,0,0,.14); border-radius: 8px; padding: 8px 10px; font-size: 12px; min-width: 150px; z-index: 5; display: none; }
+  .tip .h { color: var(--ink2); margin-bottom: 4px; }
+  .tip .r { display: flex; align-items: center; gap: 8px; padding: 1px 0; }
+  .tip .r .key { width: 12px; height: 2px; border-radius: 1px; flex: none; }
+  .tip .r .nokey { width: 12px; flex: none; }
+  .tip .r b { font-size: 13px; font-weight: 650; min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+  .tip .r span.n { color: var(--ink2); }
+
+  /* 방문일수 분포 막대 */
+  .bars { display: grid; gap: 10px; margin-top: 6px; }
+  .bar-row { display: grid; grid-template-columns: 56px 1fr; gap: 10px; align-items: center; }
+  .bar-row .lab { color: var(--ink2); font-size: 12.5px; }
+  .bar-track { position: relative; height: 26px; }
+  .bar-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--s1); border-radius: 0 4px 4px 0; min-width: 2px; }
+  .bar-val { position: absolute; top: 0; bottom: 0; display: flex; align-items: center; padding-left: 8px; font-size: 12.5px; white-space: nowrap; }
+  .bar-val b { font-weight: 650; margin-right: 4px; }
+  .bar-val span { color: var(--ink2); }
+
+  /* 키워드 히트 테이블 */
+  .scroll { overflow-x: auto; }
+  table { border-collapse: separate; border-spacing: 0; font-size: 12.5px; width: 100%; }
+  th, td { padding: 6px 8px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; }
+  thead th { color: var(--ink2); font-weight: 500; border-bottom: 1px solid var(--axis); }
+  th.rl, td.rl { text-align: left; position: sticky; left: 0; background: var(--surface); z-index: 1; padding-right: 14px; }
+  tbody td { border-bottom: 1px solid var(--grid); }
+  tbody td.heat { text-align: center; min-width: 44px; }
+  td.zero { color: var(--muted); }
+  tr.total td { font-weight: 650; }
+  tr.total td.heat { background: transparent !important; color: var(--ink); }
+  .note { color: var(--ink2); font-size: 12px; margin: 10px 0 0; }
+
+  details { margin-top: 12px; }
+  summary { cursor: pointer; color: var(--ink2); font-size: 12.5px; padding: 6px 0; }
+  .defs { margin: 8px 0 0; padding-left: 18px; color: var(--ink2); font-size: 12.5px; }
+  .defs li { margin: 3px 0; }
+  .err { padding: 20px; color: var(--ink2); }
+</style>
+</head>
+<body>
+<div class="wrap" id="app">
+  <h1>오늘의공고 웹사이트 KPI</h1>
+  <div class="meta" id="meta">불러오는 중…</div>
+</div>
+
+<script>
+(() => {
+  const NS = 'http://www.w3.org/2000/svg';
+  const app = document.getElementById('app');
+  const params = new URLSearchParams(location.search);
+  if (params.get('theme') === 'dark' || params.get('theme') === 'light') document.documentElement.dataset.theme = params.get('theme');
+
+  // ── helpers ──────────────────────────────────────────────
+  const h = (tag, cls, text) => { const e = document.createElement(tag); if (cls) e.className = cls; if (text != null) e.textContent = text; return e; };
+  const sv = (tag, attrs = {}) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]); return e; };
+  const fmtN = (n) => Number(n).toLocaleString('ko-KR');
+  const pct = (r, d = 1) => (r == null ? '–' : (r * 100).toFixed(d) + '%');
+  const md = (d) => { const p = d.split('-'); return `${+p[1]}/${+p[2]}`; };
+  const wd = (d) => '일월화수목금토'[new Date(d + 'T00:00:00Z').getUTCDay()];
+  const redraw = [];   // 리사이즈 시 다시 그릴 차트들
+
+  function niceScale(max) {
+    max = Math.max(max, 1);
+    const raw = max / 4, p = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / p;
+    const step = (f <= 1 ? 1 : f <= 2 ? 2 : f <= 5 ? 5 : 10) * p;
+    const top = Math.ceil(max / step) * step, ticks = [];
+    for (let v = 0; v <= top + 1e-9; v += step) ticks.push(+v.toFixed(10));
+    return { top, ticks };
+  }
+
+  // ── 라인 차트 (크로스헤어 + 툴팁 + 우측 직접 라벨) ──────────
+  function lineChart(host, o) {
+    host.textContent = '';
+    const W = Math.max(host.clientWidth || 640, 300), H = o.height || 280;
+    const direct = o.direct && W >= 560;
+    const m = { t: 14, r: direct ? 136 : 22, b: 30, l: 44 };
+    const pw = W - m.l - m.r, ph = H - m.t - m.b, n = o.dates.length;
+    const all = o.series.flatMap((s) => s.values).filter((v) => v != null);
+    const { top, ticks } = niceScale(Math.max(0, ...all));
+    const X = (i) => (n === 1 ? m.l + pw / 2 : m.l + (pw * i) / (n - 1));
+    const Y = (v) => m.t + ph - (ph * v) / top;
+    const yFmt = o.yFmt || fmtN;
+
+    if (o.series.length > 1) {
+      const lg = h('div', 'legend');
+      o.series.forEach((s) => {
+        const it = h('span', 'it'), k = h('i', 'key');
+        k.style.background = s.color;
+        it.append(k, h('span', '', s.name));
+        lg.append(it);
+      });
+      host.append(lg);
+    }
+
+    const svg = sv('svg', { width: W, height: H, viewBox: `0 0 ${W} ${H}`, role: 'img', tabindex: 0, 'aria-label': o.aria || '' });
+    // 그리드 + y 라벨
+    ticks.forEach((t) => {
+      svg.append(sv('line', { x1: m.l, x2: m.l + pw, y1: Y(t), y2: Y(t), style: `stroke:var(${t === 0 ? '--axis' : '--grid'});stroke-width:1` }));
+      const tx = sv('text', { x: m.l - 8, y: Y(t) + 4, 'text-anchor': 'end', style: 'fill:var(--muted);font-size:11px' });
+      tx.textContent = yFmt(t);
+      svg.append(tx);
+    });
+    // x 라벨
+    const step = Math.max(1, Math.ceil(n / Math.max(1, Math.floor(pw / 52))));
+    const shown = [];
+    for (let i = 0; i < n; i += step) shown.push(i);
+    if (n - 1 - shown[shown.length - 1] >= Math.ceil(step / 2)) shown.push(n - 1);
+    shown.forEach((i) => {
+      const tx = sv('text', { x: X(i), y: H - 8, 'text-anchor': 'middle', style: 'fill:var(--muted);font-size:11px' });
+      tx.textContent = md(o.dates[i]);
+      svg.append(tx);
+    });
+    // 선 + 마커
+    o.series.forEach((s) => {
+      const pts = s.values.map((v, i) => (v == null ? null : [X(i), Y(v)]));
+      let d = '', pen = false;
+      pts.forEach((p) => { if (!p) { pen = false; return; } d += (pen ? 'L' : 'M') + p[0].toFixed(1) + ' ' + p[1].toFixed(1); pen = true; });
+      svg.append(sv('path', { d, fill: 'none', style: `stroke:${s.color};stroke-width:2;stroke-linejoin:round;stroke-linecap:round` }));
+      if (n <= 20) pts.forEach((p) => { if (p) svg.append(sv('circle', { cx: p[0], cy: p[1], r: 4, style: `fill:${s.color};stroke:var(--surface);stroke-width:2` })); });
+    });
+    // 우측 직접 라벨
+    if (direct) {
+      const ends = o.series.map((s) => ({ s, y: Y(s.values[n - 1] ?? 0) })).sort((a, b) => b.y - a.y);
+      for (let k = 1; k < ends.length; k++) if (ends[k - 1].y - ends[k].y < 14) ends[k].y = ends[k - 1].y - 14;
+      ends.forEach(({ s, y }) => {
+        svg.append(sv('line', { x1: X(n - 1) + 10, x2: X(n - 1) + 22, y1: y, y2: y, style: `stroke:${s.color};stroke-width:2;stroke-linecap:round` }));
+        const tx = sv('text', { x: X(n - 1) + 27, y: y + 4, style: 'fill:var(--ink2);font-size:11.5px' });
+        tx.textContent = s.name;
+        svg.append(tx);
+      });
+    }
+    // 호버 레이어
+    const vline = sv('line', { y1: m.t, y2: m.t + ph, style: 'stroke:var(--axis);stroke-width:1;display:none' });
+    const dots = o.series.map((s) => sv('circle', { r: 5, style: `fill:${s.color};stroke:var(--surface);stroke-width:2;display:none` }));
+    svg.append(vline, ...dots);
+    const hit = sv('rect', { x: m.l - 6, y: m.t, width: pw + 12, height: ph, fill: 'transparent' });
+    svg.append(hit);
+    host.append(svg);
+
+    const tip = h('div', 'tip');
+    host.append(tip);
+    let cur = n - 1;
+    const hide = () => { vline.style.display = 'none'; dots.forEach((d) => (d.style.display = 'none')); tip.style.display = 'none'; };
+    const show = (i) => {
+      cur = i;
+      vline.setAttribute('x1', X(i)); vline.setAttribute('x2', X(i)); vline.style.display = '';
+      o.series.forEach((s, k) => {
+        const v = s.values[i];
+        if (v == null) { dots[k].style.display = 'none'; return; }
+        dots[k].setAttribute('cx', X(i)); dots[k].setAttribute('cy', Y(v)); dots[k].style.display = '';
+      });
+      tip.textContent = '';
+      tip.append(h('div', 'h', `${md(o.dates[i])} (${wd(o.dates[i])})`));
+      o.tipRows(i).forEach((r) => {
+        const row = h('div', 'r');
+        if (r.color) { const k = h('i', 'key'); k.style.background = r.color; row.append(k); } else row.append(h('i', 'nokey'));
+        row.append(h('b', '', r.value), h('span', 'n', r.name));
+        tip.append(row);
+      });
+      tip.style.display = 'block';
+      const tw = tip.offsetWidth;
+      let left = X(i) + 14;
+      if (left + tw > W) left = X(i) - tw - 14;
+      tip.style.left = Math.max(0, left) + 'px';
+      tip.style.top = (m.t + (o.series.length > 1 ? 28 : 6)) + 'px';
+    };
+    const idxAt = (ev) => {
+      const r = svg.getBoundingClientRect();
+      const px = (ev.clientX - r.left) * (W / r.width);
+      return n === 1 ? 0 : Math.min(n - 1, Math.max(0, Math.round(((px - m.l) / pw) * (n - 1))));
+    };
+    hit.addEventListener('pointermove', (ev) => show(idxAt(ev)));
+    hit.addEventListener('pointerdown', (ev) => show(idxAt(ev)));
+    hit.addEventListener('pointerleave', hide);
+    svg.addEventListener('focus', () => show(cur));
+    svg.addEventListener('blur', hide);
+    svg.addEventListener('keydown', (ev) => {
+      if (ev.key === 'ArrowLeft') { show(Math.max(0, cur - 1)); ev.preventDefault(); }
+      else if (ev.key === 'ArrowRight') { show(Math.min(n - 1, cur + 1)); ev.preventDefault(); }
+      else if (ev.key === 'Escape') hide();
+    });
+  }
+
+  // 컨테이너 폭이 바뀌면 다시 그림
+  function mountChart(host, build) {
+    const draw = () => build(host);
+    draw();
+    redraw.push({ host, draw });
+  }
+  let lastW = 0;
+  new ResizeObserver(() => {
+    const w = app.clientWidth;
+    if (Math.abs(w - lastW) < 2) return;
+    lastW = w;
+    requestAnimationFrame(() => redraw.forEach((r) => r.draw()));
+  }).observe(app);
+
+  // ── 화면 구성 ─────────────────────────────────────────────
+  function render(data) {
+    const dates = data.daily.map((d) => d.dt);
+    const last = data.daily[data.daily.length - 1] || { dau: 0, new_users: 0, cum_mau: 0 };
+    const prev = data.daily[data.daily.length - 2];
+    app.textContent = '';
+
+    // 헤더
+    app.append(h('h1', '', '오늘의공고 웹사이트 KPI'));
+    const gen = (data.generated_at || '').replace('T', ' ').slice(5, 16).replace('-', '/');
+    app.append(h('div', 'meta', `UTM 유입 유저 기준 · ${data.period.start} ~ ${data.period.end} · 업데이트 ${gen} (KST)`));
+    if (data.sample) app.append(h('div', 'sample-banner', '샘플 데이터입니다. 실제 수치가 아니에요.'));
+
+    // KPI 타일
+    const kp = h('div', 'kpis');
+    const tile = (cls, label, value, unit, sub) => {
+      const t = h('div', 'card tile ' + cls);
+      const v = h('div', 'value', value);
+      if (unit) v.append(h('small', '', unit));
+      t.append(h('div', 'label', label), v);
+      const s = h('div', 'sub'); sub.forEach((x) => s.append(typeof x === 'string' ? document.createTextNode(x) : x));
+      t.append(s);
+      return t;
+    };
+    const b = (x) => h('b', '', x);
+    kp.append(
+      tile('hero', `MAU · ${md(data.period.start)}부터 지금까지 (UTM 유입 고유 유저)`, fmtN(data.summary.mau_cum), '명', ['오늘 신규 유입 ', b('+' + fmtN(last.new_users) + '명')]),
+      tile('', '오늘 UTM 방문자', fmtN(last.dau), '명', prev ? ['어제 ', b(fmtN(prev.dau) + '명')] : ['']),
+      tile('', '재방문률 (오늘 기준)', pct(data.summary.revisit_rate), '', [b(fmtN(data.summary.revisit_users) + '명'), ` / UTM 유입 ${fmtN(data.summary.utm_users)}명이 2일 이상 방문`]),
+    );
+    app.append(kp);
+
+    // 1) 누적 MAU 추이
+    const s1 = h('section', 'card');
+    const hd1 = h('div', 'sec-head'); const t1 = h('div');
+    t1.append(h('h2', '', '누적 MAU 추이'), h('p', '', `${md(data.period.start)}부터 그날까지 UTM으로 한 번이라도 들어온 고유 유저 수예요. 마지막 값이 위의 MAU와 같아요.`));
+    hd1.append(t1); s1.append(hd1);
+    const c1 = h('div', 'chart'); s1.append(c1); app.append(s1);
+    mountChart(c1, (host) => lineChart(host, {
+      dates, height: 260, aria: '날짜별 누적 MAU 추이',
+      series: [{ name: '누적 MAU', color: 'var(--s1)', values: data.daily.map((d) => d.cum_mau) }],
+      tipRows: (i) => [
+        { name: '누적 MAU', value: fmtN(data.daily[i].cum_mau), color: 'var(--s1)' },
+        { name: '그날 신규 유입', value: '+' + fmtN(data.daily[i].new_users) },
+        { name: '그날 UTM 방문자', value: fmtN(data.daily[i].dau) },
+      ],
+    }));
+
+    // 2) 날짜별 UTM별
+    const groups = [...new Set(data.keywords.map((k) => k.grp))];
+    const gColor = (g) => `var(--s${groups.indexOf(g) + 1})`;
+    const s2 = h('section', 'card');
+    const hd2 = h('div', 'sec-head'); const t2 = h('div');
+    t2.append(h('h2', '', '날짜별 UTM별 방문 유저'), h('p', '', '그날 해당 UTM으로 방문한 고유 유저 수예요(일별). 같은 날 여러 UTM으로 들어온 유저는 각 UTM에 1명씩 잡혀서, 합쳐도 ‘전체’와 다를 수 있어요.'));
+    const seg = h('div', 'seg');
+    const bG = h('button', '', '채널 그룹'), bK = h('button', '', '키워드');
+    [bG, bK].forEach((x) => x.setAttribute('type', 'button'));
+    seg.append(bG, bK); hd2.append(t2, seg); s2.append(hd2);
+    const c2 = h('div', 'chart'); const c2k = h('div', 'scroll');
+    s2.append(c2, c2k); app.append(s2);
+
+    const byG = new Map();
+    data.by_group.forEach((r) => { if (!byG.has(r.grp)) byG.set(r.grp, new Map()); byG.get(r.grp).set(r.dt, r.users); });
+    const groupSeries = [{ name: '전체(중복 제거)', color: 'var(--ink2)', values: data.daily.map((d) => d.dau) }]
+      .concat(groups.map((g) => ({ name: g, color: gColor(g), values: dates.map((d) => (byG.get(g) && byG.get(g).get(d)) || 0) })));
+    mountChart(c2, (host) => lineChart(host, {
+      dates, height: 300, direct: true, aria: '날짜별 채널 그룹별 방문 유저',
+      series: groupSeries,
+      tipRows: (i) => groupSeries.map((s) => ({ name: s.name, value: fmtN(s.values[i]), color: s.color, v: s.values[i] }))
+        .filter((r, k) => k === 0 || r.v > 0).sort((a, b2) => (a.name.startsWith('전체') ? -1 : b2.name.startsWith('전체') ? 1 : b2.v - a.v)),
+    }));
+
+    // 키워드 히트 테이블
+    const byK = new Map();
+    data.by_keyword.forEach((r) => { if (!byK.has(r.keyword)) byK.set(r.keyword, new Map()); byK.get(r.keyword).set(r.dt, r.users); });
+    const maxK = Math.max(1, ...data.by_keyword.map((r) => r.users));
+    const tbl = h('table'); const thead = h('thead'); const hr = h('tr');
+    const th0 = h('th', 'rl', 'UTM'); hr.append(th0);
+    dates.forEach((d) => hr.append(h('th', '', md(d))));
+    thead.append(hr); tbl.append(thead);
+    const tb = h('tbody');
+    const tot = h('tr', 'total'); tot.append(h('td', 'rl', '전체(중복 제거)'));
+    data.daily.forEach((d) => { const td = h('td', 'heat', fmtN(d.dau)); tot.append(td); });
+    tb.append(tot);
+    data.keywords.forEach((k) => {
+      const tr = h('tr'); tr.append(h('td', 'rl', k.label));
+      dates.forEach((d) => {
+        const v = (byK.get(k.keyword) && byK.get(k.keyword).get(d)) || 0;
+        const td = h('td', 'heat' + (v ? '' : ' zero'), v ? fmtN(v) : '·');
+        if (v) {
+          const t = v / maxK;
+          td.style.background = `color-mix(in srgb, var(--s1) ${Math.round(14 + t * 80)}%, var(--surface))`;
+          if (t > 0.55) td.style.color = 'var(--cell-ink-on-dark)';
+        }
+        td.title = `${k.label} · ${md(d)} · ${fmtN(v)}명`;
+        tr.append(td);
+      });
+      tb.append(tr);
+    });
+    tbl.append(tb); c2k.append(tbl);
+    const kNote = h('p', 'note', '‘오공고 인스타 · 전체’는 instagramjob 이 들어간 모든 UTM(리틀리·스토리·프로필 포함)이라 아래 세부 행과 겹쳐요. 색이 진할수록 유저가 많은 칸이에요.');
+    s2.append(kNote);
+    const setView = (v) => {
+      bG.setAttribute('aria-pressed', v === 'g'); bK.setAttribute('aria-pressed', v === 'k');
+      c2.style.display = v === 'g' ? '' : 'none'; c2k.style.display = v === 'k' ? '' : 'none'; kNote.style.display = v === 'k' ? '' : 'none';
+      if (v === 'g') redraw.forEach((r) => r.draw());
+    };
+    bG.onclick = () => setView('g'); bK.onclick = () => setView('k'); setView('g');
+
+    // 3) 재방문률
+    const trend = data.revisit.trend;
+    const two = h('div', 'two');
+    const s3 = h('section', 'card');
+    const t3 = h('div', 'sec-head');
+    const t3i = h('div');
+    t3i.append(h('h2', '', '재방문률 추이'), h('p', '', `그날까지 UTM으로 들어온 유저 중, 그날까지 서로 다른 2일 이상 방문한 비율이에요. 마지막 값이 오늘 기준 재방문률이에요.`));
+    t3.append(t3i); s3.append(t3);
+    const c3 = h('div', 'chart'); s3.append(c3);
+    mountChart(c3, (host) => lineChart(host, {
+      dates: trend.map((r) => r.dt), height: 240, aria: '날짜 기준 재방문률 추이', yFmt: (v) => v + '%',
+      series: [{ name: '재방문률', color: 'var(--s1)', values: trend.map((r) => (r.rate == null ? null : +(r.rate * 100).toFixed(2))) }],
+      tipRows: (i) => [
+        { name: '재방문률', value: pct(trend[i].rate), color: 'var(--s1)' },
+        { name: '2일 이상 방문', value: fmtN(trend[i].revisit_users) + '명' },
+        { name: 'UTM 유입 유저', value: fmtN(trend[i].utm_users) + '명' },
+      ],
+    }));
+
+    const s4 = h('section', 'card');
+    const t4 = h('div', 'sec-head'); const t4i = h('div');
+    t4i.append(h('h2', '', '방문일수 분포'), h('p', '', `UTM 유입 유저가 ${md(data.period.start)}부터 오늘까지 며칠 방문했는지예요.`));
+    t4.append(t4i); s4.append(t4);
+    const dist = [1, 2, 3, 4].map((d) => ({ d, users: (data.revisit.distribution.find((x) => x.days === d) || {}).users || 0 }));
+    const dTot = Math.max(1, dist.reduce((a, x) => a + x.users, 0)), dMax = Math.max(1, ...dist.map((x) => x.users));
+    const bars = h('div', 'bars');
+    dist.forEach((x) => {
+      const row = h('div', 'bar-row'); row.append(h('div', 'lab', x.d === 4 ? '4일 이상' : x.d + '일'));
+      const tr = h('div', 'bar-track'); const w = (x.users / dMax) * 70;
+      const f = h('div', 'bar-fill'); f.style.width = w + '%';
+      const v = h('div', 'bar-val'); v.style.left = `calc(${w}% )`;
+      v.append(h('b', '', fmtN(x.users) + '명'), h('span', '', `(${pct(x.users / dTot, 0)})`));
+      tr.append(f, v); row.append(tr); bars.append(row);
+    });
+    s4.append(bars);
+    two.append(s3, s4); app.append(two);
+
+    // 표로 보기 + 정의
+    const det = h('details'); det.append(h('summary', '', '표로 보기 · 지표 정의'));
+    const dt = h('table'); const dh = h('thead'); const dr = h('tr');
+    ['날짜', '누적 MAU', '신규 UTM 유입', 'UTM 방문자', '재방문률(그날 기준)'].forEach((x, i) => dr.append(h('th', i === 0 ? 'rl' : '', x)));
+    dh.append(dr); dt.append(dh);
+    const dbd = h('tbody');
+    data.daily.slice().reverse().forEach((d) => {
+      const tr = h('tr'); const t = trend.find((r) => r.dt === d.dt) || {};
+      tr.append(h('td', 'rl', `${d.dt} (${wd(d.dt)})`), h('td', '', fmtN(d.cum_mau)), h('td', '', fmtN(d.new_users)), h('td', '', fmtN(d.dau)), h('td', '', pct(t.rate)));
+      dbd.append(tr);
+    });
+    dt.append(dbd);
+    const sc = h('div', 'scroll'); sc.append(dt); det.append(sc);
+    const defs = h('ul', 'defs');
+    [
+      data.definitions.population,
+      'MAU: ' + data.definitions.mau,
+      '날짜별 UTM별: ' + data.definitions.daily_utm,
+      '재방문률: ' + data.definitions.revisit,
+      '유저는 기기·브라우저(쿠키) 단위예요. 한 사람이 폰과 PC, 또는 인앱 브라우저와 일반 브라우저로 들어오면 2명으로 잡혀요.',
+      'UTM 값은 source·medium·campaign·content를 합쳐 부분 일치로 찾아요. 대소문자는 구분하지 않고, 뒤에 날짜가 붙은 값도 잡아요.',
+    ].forEach((x) => defs.append(h('li', '', x)));
+    det.append(defs); app.append(det);
+
+    redraw.forEach((r) => r.draw());
+  }
+
+  // ── 데이터 로드 ──────────────────────────────────────────
+  const srcParam = params.get('src');
+  const src = srcParam && /^data\/[\w.-]+\.json$/.test(srcParam) ? srcParam : 'data/kpi.json';
+  fetch(src + '?t=' + Date.now(), { cache: 'no-store' })
+    .then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })
+    .then(render)
+    .catch(() => {
+      app.textContent = '';
+      app.append(h('h1', '', '오늘의공고 웹사이트 KPI'), h('div', 'card err', '데이터를 불러오지 못했어요. docs/data/kpi.json 이 만들어졌는지(GitHub Actions 실행 여부) 확인해 주세요.'));
+    });
+})();
+</script>
+</body>
+</html>

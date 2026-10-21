@@ -1,0 +1,12 @@
+{
+  "name": "todays-job-kpi-dashboard",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "fetch": "node scripts/fetch.mjs",
+    "dry-run": "DRY_RUN=1 node scripts/fetch.mjs"
+  },
+  "dependencies": {
+    "@google-cloud/bigquery": "^7.9.0"
+  }
+}
